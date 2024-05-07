@@ -1,0 +1,26 @@
+#include <avr/io.h>
+
+// Function to set a pin as an output
+void set_pin_output(volatile uint8_t *ddr, volatile uint8_t *port, uint8_t pin) {
+    *ddr |= (1 << pin);
+    *port &= ~(1 << pin); // Make sure the pin is initially low
+}
+
+// Function to set a pin as an input
+void set_pin_input(volatile uint8_t *ddr, volatile uint8_t *port, uint8_t pin, uint8_t pullup) {
+    *ddr &= ~(1 << pin);
+    if (pullup)
+        *port |= (1 << pin); // Enable pull-up resistor
+    else
+        *port &= ~(1 << pin); // Disable pull-up resistor
+}
+
+// Function to set a port as an output
+void set_port_output(volatile uint8_t *ddr) {
+    *ddr = 0xFF;
+}
+
+// Function to set a port as an input
+void set_port_input(volatile uint8_t *ddr) {
+    *ddr = 0x00;
+}
