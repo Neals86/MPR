@@ -12,7 +12,7 @@ int is_button_pressed(uint8_t button_pin){
     if (!(PINB & (1 << button_pin))) {
         _delay_ms(10); // Debounce delay
         if (!(PINB & (1 << button_pin))) {
-            return 1;
+            return 0;
         }
     }
     return 0;
