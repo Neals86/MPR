@@ -15,7 +15,6 @@ void timer0_init() {
     // Set the prescaler to 1024
     TCCR0 |= (1 << CS02) | (1 << CS00);
     // Calculate and set the Compare Match value for 0.5 seconds delay
-    // Formula: OCR0 = (F_CPU / (2 * N * f)) - 1; where N is the prescaler (1024), f = 1 / delay (0.5 s)
     OCR0 = 77;  // This value gives approximately 0.5 second delay
     // Enable Output Compare Match Interrupt for Timer 0
     TIMSK |= (1 << OCIE0);
@@ -23,20 +22,14 @@ void timer0_init() {
 
 // ISR for Timer 0 compare match
 ISR(TIMER0_COMP_vect) {
-    if (blink_count < 10) {         // Blink 10 times
-        PORTB = pattern;            // Output the current pattern to the LEDs
-        // Toggle between Pattern 1 (0xAA) and Pattern 2 (0x55)
-        if (pattern == 0xAA) {
-            pattern = 0x55;         // Switch to Pattern 2 (01010101)
-        } else {
-            pattern = 0xAA;         // Switch back to Pattern 1 (10101010)
-        }
-        blink_count++;              // Increment blink count
+    PORTB = pattern;            // Output the current pattern to the LEDs
+    // Toggle between Pattern 1 (0xAA) and Pattern 2 (0x55)
+    if (pattern == 0xAA) {
+        pattern = 0x55;         // Switch to Pattern 2 (01010101)
     } else {
-        TIMSK &= ~(1 << OCIE0);     // Disable Timer interrupt after 10 blinks
-        PORTB = 0xFF;               // Turn off all LEDs (active low)
-        blinking = 0;               // Stop blinking
+        pattern = 0xAA;         // Switch back to Pattern 1 (10101010)
     }
+    blink_count++;              // Increment blink count
 }
 
 // Main function
@@ -68,6 +61,13 @@ int main() {
             while (!(PINA & (1 << PA0))) {
                 // Busy wait until S0 is released
             }
+        }
+
+        // Stop after 10 blinks
+        if (blink_count >= 20) { // 20 toggle changes = 10 full blinks
+            blinking = 0;            // Stop blinking
+            TIMSK &= ~(1 << OCIE0);  // Disable Timer interrupt
+            PORTB = 0xFF;            // Turn off all LEDs (active low)
         }
 
         // Check for button S1 press to stop blinking (S1 is connected to PA1)
