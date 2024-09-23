@@ -1,38 +1,9 @@
 #include <avr/io.h>
-#include <avr/interrupt.h>
+#include <util/delay.h>  // Include delay.h for _delay_ms()
 
-// Define the frequency of the oscillator
-#define F_CPU 16000000UL
+// Define the delay time (500ms = 0.5 second)
+#define DELAY_TIME 500
 
-volatile uint8_t blink_count = 0;          // To count the number of blinks
-volatile uint8_t pattern = 0xAA;           // Start with pattern 10101010 (0xAA)
-volatile uint8_t blinking = 0;             // To keep track of blinking state
-
-// Function to initialize Timer 0
-void timer0_init() {
-    // Set Timer 0 in CTC (Clear Timer on Compare Match) mode
-    TCCR0 = (1 << WGM01);  // CTC mode
-    // Set the prescaler to 1024
-    TCCR0 |= (1 << CS02) | (1 << CS00);
-    // Calculate and set the Compare Match value for 0.5 seconds delay
-    OCR0 = 77;  // This value gives approximately 0.5 second delay
-    // Enable Output Compare Match Interrupt for Timer 0
-    TIMSK |= (1 << OCIE0);
-}
-
-// ISR for Timer 0 compare match
-ISR(TIMER0_COMP_vect) {
-    PORTB = pattern;            // Output the current pattern to the LEDs
-    // Toggle between Pattern 1 (0xAA) and Pattern 2 (0x55)
-    if (pattern == 0xAA) {
-        pattern = 0x55;         // Switch to Pattern 2 (01010101)
-    } else {
-        pattern = 0xAA;         // Switch back to Pattern 1 (10101010)
-    }
-    blink_count++;              // Increment blink count
-}
-
-// Main function
 int main() {
     // Initialize I/O
     DDRB = 0xFF;    // Set PORTB as output for LEDs
@@ -41,39 +12,41 @@ int main() {
     DDRA &= ~((1 << PA1) | (1 << PA0));  // Set PA1 and PA0 as input for buttons S1 and S0
     PORTA |= (1 << PA1) | (1 << PA0);    // Enable pull-up resistors for buttons S1 and S0 (active low)
 
-    // Initialize Timer 0
-    timer0_init();
-
-    // Enable global interrupts
-    sei();
-
     // Main loop
     while (1) {
         // Check for button S0 press (S0 is connected to PA0)
         if (!(PINA & (1 << PA0))) {  // If S0 is pressed (active low)
-            if (!blinking) {         // Start blinking only if not already blinking
-                blink_count = 0;     // Reset blink counter
-                blinking = 1;        // Set blinking flag
-                TIMSK |= (1 << OCIE0); // Enable Timer interrupt
-            }
-
             // Wait until S0 is released to avoid repeated triggers
             while (!(PINA & (1 << PA0))) {
                 // Busy wait until S0 is released
             }
-        }
 
-        // Stop after 10 blinks
-        if (blink_count >= 20) { // 20 toggle changes = 10 full blinks
-            blinking = 0;            // Stop blinking
-            TIMSK &= ~(1 << OCIE0);  // Disable Timer interrupt
-            PORTB = 0xFF;            // Turn off all LEDs (active low)
+            // Blink 10 times
+            for (uint8_t i = 0; i < 10; i++) {
+                PORTB = 0x55;  // Turn on Pattern 1 (01010101)
+                _delay_ms(DELAY_TIME);  // 500ms delay
+
+                // Check if S1 is pressed during blinking to stop
+                if (!(PINA & (1 << PA1))) {
+                    PORTB = 0xFF;  // Turn off LEDs
+                    break;         // Exit the blinking loop
+                }
+
+                PORTB = 0xAA;  // Turn on Pattern 2 (10101010)
+                _delay_ms(DELAY_TIME);  // 500ms delay
+
+                // Check if S1 is pressed during blinking to stop
+                if (!(PINA & (1 << PA1))) {
+                    PORTB = 0xFF;  // Turn off LEDs
+                    break;         // Exit the blinking loop
+                }
+            }
+
+            PORTB = 0xFF;  // Turn off LEDs (active low)
         }
 
         // Check for button S1 press to stop blinking (S1 is connected to PA1)
         if (!(PINA & (1 << PA1))) {  // If S1 is pressed (active low)
-            blinking = 0;            // Clear the blinking flag
-            TIMSK &= ~(1 << OCIE0);  // Disable Timer interrupt
             PORTB = 0xFF;            // Turn off all LEDs (active low)
 
             // Wait until S1 is released
