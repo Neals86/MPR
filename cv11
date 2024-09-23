@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>  // Include delay.h for small delays
 
 #define F_CPU 16000000UL  // Define the crystal frequency
 #define BLINKS 10         // Number of blinks (10 full cycles)
@@ -42,13 +43,13 @@ int main() {
         // Check for button S0 press (S0 is connected to PA0)
         if (!(PINA & (1 << PA0))) {  // If S0 is pressed (active low)
             while (!(PINA & (1 << PA0))) {
-                // Busy wait until S0 is released to avoid repeated triggers
+                _delay_ms(50);  // Busy wait with delay (debounce handling)
             }
 
             // Start blinking 10 times
             for (blink_count = 0; blink_count < BLINKS * 2; blink_count++) { // 20 changes for 10 blinks
                 while (!blink_flag) {
-                    // Wait until timer sets the flag (0.5s delay handled by Timer 0)
+                    _delay_ms(50);  // Small delay in the busy wait loop
                 }
 
                 blink_flag = 0;  // Reset the flag
@@ -78,7 +79,7 @@ int main() {
 
             // Wait until S1 is released
             while (!(PINA & (1 << PA1))) {
-                // Busy wait until S1 is released
+                _delay_ms(50);  // Busy wait with delay (debounce handling)
             }
         }
     }
