@@ -1,7 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define F_CPU 16000000UL  // Updated clock speed to 16 MHz
+#define F_CPU 16000000UL  // Clock speed is 16 MHz
 #include <util/delay.h>
 
 // Pin definitions
@@ -51,7 +51,7 @@ ISR(INT0_vect) {
     int new_state = PINA & (ENC_A | ENC_B); // Read A and B
 
     // Clockwise rotation (A changes before B)
-    if (((last_state & ENC_A) == 0) && ((new_state & ENC_A) != 0)) {
+    if (((last_state & ENC_A) != 0) && ((new_state & ENC_A) == 0)) { // Inverted logic: 1 -> 0 (falling edge)
         if (new_state & ENC_B) {
             if (counter < 9999) counter++; // Increment counter
         } else {
@@ -60,7 +60,7 @@ ISR(INT0_vect) {
     }
 
     // Counterclockwise rotation (B changes before A)
-    if (((last_state & ENC_B) == 0) && ((new_state & ENC_B) != 0)) {
+    if (((last_state & ENC_B) != 0) && ((new_state & ENC_B) == 0)) { // Inverted logic: 1 -> 0 (falling edge)
         if (new_state & ENC_A) {
             if (counter > 0) counter--; // Decrement counter
         } else {
@@ -78,19 +78,22 @@ ISR(INT1_vect) {
 
 void setup() {
     // Set Port A as input for encoder (PA0, PA1) and button (PA2)
-    DDRA &= ~(ENC_A | ENC_B | ENC_BTN);
+    DDRA &= ~(ENC_A | ENC_B | ENC_BTN); // Set PA0, PA1, PA2 as inputs
+
+    // Enable internal pull-up resistors for PA0, PA1, PA2 (encoder and button)
+    PORTA |= (ENC_A | ENC_B | ENC_BTN);
     
     // Set Ports C and D as output for 7-segment display
-    DDRC = 0xFF;
-    DDRD = 0xFF;
+    DDRC = 0xFF; // Set Port C as output (segments)
+    DDRD = 0xFF; // Set Port D as output (digits)
     
     // Enable external interrupts for encoder and button
     GICR |= (1<<INT0) | (1<<INT1);    // Enable INT0 and INT1
-    MCUCR |= (1<<ISC01) | (1<<ISC11); // Falling edge for INT0 and INT1
+    MCUCR |= (1<<ISC01) | (1<<ISC11); // Falling edge for INT0 and INT1 (since button and encoder are active low)
     
     // Initialize segment and digit ports
-    SEG_PORT = 0xFF;
-    DIG_PORT = 0xFF;
+    SEG_PORT = 0xFF; // Turn off all segments
+    DIG_PORT = 0xFF; // Turn off all digits
     
     // Enable global interrupts
     sei();
