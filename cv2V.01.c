@@ -1,108 +1,82 @@
 #include <avr/io.h>
-#include <avr/interrupt.h>
-
-#define F_CPU 16000000UL  // Clock speed is 16 MHz
 #include <util/delay.h>
 
-// Pin definitions
-#define ENC_A (1<<PA0)     // Encoder A input
-#define ENC_B (1<<PA1)     // Encoder B input
-#define ENC_BTN (1<<PA2)   // Encoder button input (reset)
-#define SEG_PORT PORTC     // Port connected to segments of the display
-#define DIG_PORT PORTD     // Port connected to digits
+#define F_CPU 16000000UL  
 
-volatile int counter = 0;  // Counter value (0-9999)
-volatile int last_state = 0;  // Last state of encoder A and B
+#define ENC_A (1<<PA0)     
+#define ENC_B (1<<PA1)     
+#define ENC_BTN (1<<PA2)   
+#define SEG_PORT PORTC     
+#define DIG_PORT PORTD     
 
-// 7-segment digit codes (common anode, segments a to g)
-uint8_t seg_digits[] = {
-    0b00111111, // 0
-    0b00000110, // 1
-    0b01011011, // 2
-    0b01001111, // 3
-    0b01100110, // 4
-    0b01101101, // 5
-    0b01111101, // 6
-    0b00000111, // 7
-    0b01111111, // 8
-    0b01101111  // 9
+volatile int counter = 0;  
+volatile int last_A = 0, last_B = 0;  
+
+unsigned char znak[16] = {
+    0x81, 0xf3, 0x49, 0x61, 0x33, 0x25, 0x05, 0xf1, 
+    0x01, 0x21, 0x11, 0x07, 0x8d, 0x43, 0x0d, 0x1d
 };
 
-// Function to display the counter value on the 7-segment display
 void display_number(int number) {
     int digits[4];
-    
-    // Split the number into digits
     digits[0] = number / 1000;
     digits[1] = (number / 100) % 10;
     digits[2] = (number / 10) % 10;
     digits[3] = number % 10;
     
-    // Display each digit in sequence (multiplexing)
     for (int i = 0; i < 4; i++) {
-        DIG_PORT = ~(1 << i); // Select the digit
-        SEG_PORT = ~seg_digits[digits[i]]; // Send the segment data
-        _delay_ms(1); // Short delay for each digit (smaller value since clock is faster)
+        DIG_PORT = ~(1 << i); 
+        SEG_PORT = znak[digits[i]]; 
+        _delay_ms(1); 
     }
 }
 
-// External Interrupt 0 for the encoder A signal (PA0)
-ISR(INT0_vect) {
-    int new_state = PINA & (ENC_A | ENC_B); // Read A and B
+void poll_encoder() {
+    int new_A = PINA & ENC_A;
+    int new_B = PINA & ENC_B;
 
-    // Clockwise rotation (A changes before B)
-    if (((last_state & ENC_A) != 0) && ((new_state & ENC_A) == 0)) { // Inverted logic: 1 -> 0 (falling edge)
-        if (new_state & ENC_B) {
-            if (counter < 9999) counter++; // Increment counter
+    if ((last_A != 0) && (new_A == 0)) { 
+        if (new_B != 0) { 
+            if (counter < 9999) counter++; 
         } else {
-            if (counter > 0) counter--; // Decrement counter
+            if (counter > 0) counter--; 
         }
     }
 
-    // Counterclockwise rotation (B changes before A)
-    if (((last_state & ENC_B) != 0) && ((new_state & ENC_B) == 0)) { // Inverted logic: 1 -> 0 (falling edge)
-        if (new_state & ENC_A) {
-            if (counter > 0) counter--; // Decrement counter
+    if ((last_B != 0) && (new_B == 0)) { 
+        if (new_A != 0) { 
+            if (counter > 0) counter--; 
         } else {
-            if (counter < 9999) counter++; // Increment counter
+            if (counter < 9999) counter++; 
         }
     }
 
-    last_state = new_state; // Update last state
+    last_A = new_A;
+    last_B = new_B;
 }
 
-// External Interrupt 1 for the reset button (PA2)
-ISR(INT1_vect) {
-    counter = 0; // Reset the counter
+void poll_reset_button() {
+    if (!(PINA & ENC_BTN)) { 
+        counter = 0;  
+        _delay_ms(200); 
+    }
 }
 
 void setup() {
-    // Set Port A as input for encoder (PA0, PA1) and button (PA2)
-    DDRA &= ~(ENC_A | ENC_B | ENC_BTN); // Set PA0, PA1, PA2 as inputs
-
-    // Enable internal pull-up resistors for PA0, PA1, PA2 (encoder and button)
+    DDRA &= ~(ENC_A | ENC_B | ENC_BTN); 
     PORTA |= (ENC_A | ENC_B | ENC_BTN);
-    
-    // Set Ports C and D as output for 7-segment display
-    DDRC = 0xFF; // Set Port C as output (segments)
-    DDRD = 0xFF; // Set Port D as output (digits)
-    
-    // Enable external interrupts for encoder and button
-    GICR |= (1<<INT0) | (1<<INT1);    // Enable INT0 and INT1
-    MCUCR |= (1<<ISC01) | (1<<ISC11); // Falling edge for INT0 and INT1 (since button and encoder are active low)
-    
-    // Initialize segment and digit ports
-    SEG_PORT = 0xFF; // Turn off all segments
-    DIG_PORT = 0xFF; // Turn off all digits
-    
-    // Enable global interrupts
-    sei();
+    DDRC = 0xFF;
+    DDRD = 0xFF; 
+    SEG_PORT = 0xFF;
+    DIG_PORT = 0xFF; 
 }
 
 int main(void) {
     setup();
     
     while (1) {
-        display_number(counter); // Continuously update the display with the counter value
+        poll_encoder();        
+        poll_reset_button();   
+        display_number(counter); 
     }
 }
