@@ -62,12 +62,12 @@ void setup() {
     DIG_PORT = 0xFF;
 
     // Enable pin change interrupt on PA0 and PA1
-    PCICR |= (1 << PCIE0);
+    GICR |= (1 << PCIE0);
     PCMSK0 |= (ENC_A | ENC_B);
 
     // Enable external interrupt on PA2
-    EICRA |= (1 << ISC01);
-    EIMSK |= (1 << INT0);
+    MCUCR |= (1 << ISC01);
+    GICR |= (1 << INT0);
 
     sei(); // Enable global interrupts
 }
