@@ -30,7 +30,7 @@ void display_number(int number) {
     }
 }
 
-ISR(PCINT0_vect) {
+ISR(PCINT1_vect) {
     int new_A = PINA & ENC_A;
     int new_B = PINA & ENC_B;
     static int last_A = 0;
@@ -46,7 +46,7 @@ ISR(PCINT0_vect) {
     last_A = new_A;
 }
 
-ISR(INT0_vect) {
+ISR(INT1_vect) {
     if (!(PINA & ENC_BTN)) {
         counter = 0;
         _delay_ms(200);
@@ -62,12 +62,12 @@ void setup() {
     DIG_PORT = 0xFF;
 
     // Enable pin change interrupt on PA0 and PA1
-    GICR |= (1 << PCIE0);
-    PCMSK0 |= (ENC_A | ENC_B);
+    PCICR |= (1 << PCIE1);
+    PCMSK1 |= (ENC_A | ENC_B);
 
     // Enable external interrupt on PA2
-    MCUCR |= (1 << ISC01);
-    GICR |= (1 << INT0);
+    MCUCR |= (1 << ISC11);
+    GICR |= (1 << INT1);
 
     sei(); // Enable global interrupts
 }
