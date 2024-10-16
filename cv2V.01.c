@@ -26,7 +26,8 @@ void display_number(int number) {
     for (int i = 0; i < 4; i++) {
         DIG_PORT = ~(1 << i); 
         SEG_PORT = digit_segments[digits[i]]; 
-        _delay_ms(1); 
+        _delay_ms(5); // Increased delay to 5ms 
+        SEG_PORT = 0xFF; // Turn off all segments before switching
     }
 }
 
