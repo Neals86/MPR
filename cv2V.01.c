@@ -1,5 +1,4 @@
 #include <avr/io.h>
-#include <avr/interrupt.h>
 #include <util/delay.h>
 
 #define F_CPU 16000000UL
@@ -10,6 +9,7 @@
 #define DIG_PORT PORTD
 
 volatile int counter = 0;
+volatile int last_A = 0;
 unsigned char digit_segments[16] = {
     0x81, 0xf3, 0x49, 0x61, 0x33, 0x25, 0x05, 0xf1,
     0x01, 0x21, 0x11, 0x07, 0x8d, 0x43, 0x0d, 0x1d
@@ -30,26 +30,27 @@ void display_number(int number) {
     }
 }
 
-ISR(PCINT1_vect) {
+void poll_encoder() {
     int new_A = PINA & ENC_A;
-    int new_B = PINA & ENC_B;
-    static int last_A = 0;
-
-    if (new_A && !last_A) {
-        if (new_B) {
-            if (counter < 9999) counter++;
-        } else {
-            if (counter > 0) counter--;
+    if (new_A != last_A) {
+        _delay_ms(1); // Debounce delay
+        new_A = PINA & ENC_A; // Read again after debounce
+        if (new_A != last_A) {
+            int new_B = PINA & ENC_B;
+            if (new_A && !new_B) {
+                if (counter < 9999) counter++;
+            } else if (!new_A && new_B) {
+                if (counter > 0) counter--;
+            }
+            last_A = new_A;
         }
     }
-
-    last_A = new_A;
 }
 
-ISR(INT1_vect) {
+void poll_reset_button() {
     if (!(PINA & ENC_BTN)) {
         counter = 0;
-        _delay_ms(200);
+        _delay_ms(200); // Debounce
     }
 }
 
@@ -60,22 +61,14 @@ void setup() {
     DDRD = 0xFF;
     SEG_PORT = 0xFF;
     DIG_PORT = 0xFF;
-
-    // Enable pin change interrupt on PA0 and PA1
-    PCICR |= (1 << PCIE1);
-    PCMSK1 |= (ENC_A | ENC_B);
-
-    // Enable external interrupt on PA2
-    MCUCR |= (1 << ISC11);
-    GICR |= (1 << INT1);
-
-    sei(); // Enable global interrupts
 }
 
 int main(void) {
     setup();
 
     while (1) {
+        poll_encoder();
+        poll_reset_button();
         display_number(counter);
     }
 }
