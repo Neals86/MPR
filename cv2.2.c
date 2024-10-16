@@ -10,9 +10,19 @@
 #define CLEARBIT(x, y) (x &= (~y)) /* Clear bit y in byte x */
 
 static const uint8_t PROGMEM sevsegascii_table[] = {
-    0xc0, 0xf9, 0xa4, 0xb0, 0x99, 0x92, 0x82, 0xf8,
-    0x80, 0x90, 0xbf  // 0 1 2 3 4 5 6 7 8 9 -
+    0x3F, // 0
+    0x06, // 1
+    0x5B, // 2
+    0x4F, // 3
+    0x66, // 4
+    0x6D, // 5
+    0x7D, // 6
+    0x07, // 7
+    0x7F, // 8
+    0x6F, // 9
+    0xBF  // - (dash)
 };
+
 
 void displayNumber(int number);
 void printNumber(int number);
