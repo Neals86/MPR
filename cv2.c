@@ -64,6 +64,9 @@ int main(void) {
         uint8_t encoder_b = PINB & (1 << PB1);
 
         if (encoder_a != encoder_a_last) {
+            _delay_ms(50); // Simple debounce delay
+            if (encoder_a != (PINB & (1 << PB0))) continue; // Check if state is stable
+
             if (encoder_a != encoder_b) {
                 counter++;
             } else {
